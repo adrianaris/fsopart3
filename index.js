@@ -1,8 +1,9 @@
+require('dotenv').config()
 const express = require('express')
 const morgan = require('morgan')
 const app = express()
 const cors = require('cors')
-// const mongoose = require('mongoose')
+const Person = require('./models/person')
 
 app.use(express.json())
 app.use(cors())
@@ -12,18 +13,6 @@ morgan.token('POST', (req) => {
 })
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :POST'))
 
-// DO NOT SAVE YOUR PASSWORD TO GITHUB!!
-// const url = 
-//   `mongodb+srv://fullstackopen:${password}@cluster0.ucr1f.mongodb.net/phonebookDB?retryWrites=true&w=majority`
-// 
-// mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false, useCreateIndex: true })
-// 
-// const personSchema = new mongoose.Schema({
-//   name: String,
-//   number: String,
-// })
-// 
-// const Person = mongoose.model('Person', personSchema)
 
 let people = [
   {
@@ -49,37 +38,30 @@ let people = [
 ]
 
 app.get('/api/people', (request, response) => {
-  response.json(people)
+  Person.find({}).then(person => {
+    response.json(person)
+  })
 })
 
-app.get('/info', (request, response) => {
-  response.send(
-    `<div>Phonebook has info for ${people.length} people</div>
-    <p>${Date()}</p>`
-  )
-})
+// app.get('/info', (request, response) => {
+//   response.send(
+//     `<div>Phonebook has info for ${people.length} people</div>
+//     <p>${Date()}</p>`
+//   )
+// })
 
 app.get('/api/people/:id', (request, response) => {
-  const id = Number(request.params.id)
-  const person = people.find(p => p.id === id)
-
-  if (person) {
+  Person.findById(request.params.id).then(person => {
     response.json(person)
-  } else {
-    response.status(400).end()
-  }
+  })
 })
 
-app.delete('/api/people/:id', (request, response) => {
-  const id = Number(request.params.id)
-  people = people.filter(p => p.id !== id)
-  response.status(204).end()
-})
+// app.delete('/api/people/:id', (request, response) => {
+//   const id = Number(request.params.id)
+//   people = people.filter(p => p.id !== id)
+//   response.status(204).end()
+// })
 
-const generateId = () => {
-  const id = Math.floor(Math.random() * 9999)
-  return id
-}
 app.post('/api/people', (request, response) => {
   const body = request.body
   
@@ -91,22 +73,24 @@ app.post('/api/people', (request, response) => {
       return response.status(400).json({
 	error: 'number missing'
       })
-  } else if (people.map(p => p.name).includes(body.name)) {
-    return response.status(400).json({
-      error: 'name must be unique'
-    })
-  }
+  } 
 
-  const person = {
+ // else if (Person.find({name: body.name})) {
+ //   return response.status(400).json({
+ //     error: 'name must be unique'
+ //   })
+ // }
+
+  const person = new Person({
     name: body.name,
     number: body.number,
-    id: generateId(),
-  }
-  people = people.concat(person)
-
-  response.json(person)
+  })
+  person.save().then(savedPerson => {
+    response.json(savedPerson)
+  })
 })
 
-const PORT = process.env.PORT || 3001
-app.listen(PORT)
-console.log(`Server running on port ${PORT}`)
+const PORT = process.env.PORT
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`)
+})
